@@ -53,18 +53,77 @@ add_library(server_objs OBJECT
 target_include_directories(server_objs PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(server_objs PUBLIC Threads::Threads mysql_iface)
 
-# clang 专有诊断：捕获 g++ 默认不报告的隐患（对应已知 Issue #1 #2 #5 #6）
+# ── 编译期静态校验（Issue #11）────────────────────────────────────
+# 参考 arkui_ace_engine BUILD.gn、LLVM、Chromium、FFmpeg 编译配置
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+
     target_compile_options(server_objs PRIVATE
-        -Wstring-conversion   # Issue #6: int 隐式转换为 std::string
-        -Warray-bounds        # Issue #5: 固定大小缓冲区越界写入
-        -Wuninitialized       # Issue #2: 变量先使用后赋值
-        -Wreturn-type         # Issue #1: void* 函数缺少 return
+        # ── 基础质量（LLVM / Chromium 基线）──────────────────────────
+        -Wall
+        -Wextra
+        -Wshadow
+        -Wnull-dereference
+        -Wformat=2
+        -Wcast-qual
+        -Wold-style-cast
+
+        # ── 返回值与控制流 ── Issue #1 ────────────────────────────────
+        -Werror=return-type
+
+        # ── 整数与类型安全（arkui BUILD.gn L59-60）────────────────────
+        -Werror=int-to-pointer-cast
+        -Werror=pointer-to-int-cast
+        -Werror=int-in-bool-context
+        -Werror=incompatible-pointer-types
+        -Wnarrowing                        # Issue #6: int 隐式转为 string
+        -Wconversion
+        -Wsign-compare
+        -Wstring-conversion                # Issue #6
+
+        # ── 内存与未定义行为（arkui BUILD.gn L49 L55）─────────────────
+        -Werror=return-stack-address
+        -Werror=null-pointer-arithmetic    # Issue #4
+        -Warray-bounds                     # Issue #5
+        -Wuninitialized                    # Issue #2
+
+        # ── 枚举安全（arkui BUILD.gn L50 L56）────────────────────────
+        -Werror=anon-enum-enum-conversion
+        -Werror=enum-compare-switch
+
+        # ── 现代 C++ 质量（arkui BUILD.gn L65）───────────────────────
+        -Werror=range-loop-construct
+        -Werror=abstract-final-class
+
+        # ── 可移植性（arkui BUILD.gn L53）────────────────────────────
+        -Werror=nonportable-include-path
+
+        # ── 代码意图（arkui BUILD.gn L57 L58 L62）────────────────────
+        -Werror=xor-used-as-pow
+        -Werror=absolute-value
+        -Werror=sizeof-array-div
     )
+
+    # ── Debug 构建：运行期检测（FFmpeg / Chromium 策略）──────────────
+    # ASan 捕获堆/栈溢出、use-after-free；UBSan 捕获整数溢出、NULL 解引用
+
+    # ── CI 模式：零警告策略（Chromium 策略）──────────────────────────
+    # 本地开发保持宽松；CI 传入 -DWARNINGS_AS_ERRORS=ON 强制零警告
+    option(WARNINGS_AS_ERRORS "将所有警告视为错误" OFF)
+    if(WARNINGS_AS_ERRORS)
+        target_compile_options(server_objs PRIVATE -Werror)
+    endif()
+
 endif()
 
 # ── 可执行文件：server ────────────────────────────────────────────
 add_executable(server main.cpp $<TARGET_OBJECTS:server_objs>)
+
+# Debug 构建启用 ASan/UBSan（仅作用于 server 可执行文件，不影响测试目标）
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_options(server PRIVATE
+        -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer)
+    target_link_options(server PRIVATE -fsanitize=address -fsanitize=undefined)
+endif()
 target_link_libraries(server PRIVATE Threads::Threads mysql_iface)
 
 # ── 测试 ─────────────────────────────────────────────────────────

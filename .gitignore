@@ -1,0 +1,21 @@
+# CMake 构建目录（out-of-source build）
+build/
+
+# 编译产物
+server
+*.o
+*.a
+
+# compile_commands.json 建议软链到根目录，不提交
+compile_commands.json
+
+# IDE / 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志输出
+*.log
+ServerLog*/

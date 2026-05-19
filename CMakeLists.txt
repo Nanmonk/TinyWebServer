@@ -1,4 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
+
+# ── 编译器强制要求 clang++（必须在 project() 之前）─────────────────
+find_program(CLANGXX clang++ REQUIRED)
+set(CMAKE_CXX_COMPILER "${CLANGXX}" CACHE STRING "" FORCE)
+message(STATUS "使用编译器: ${CLANGXX}")
+
 project(TinyWebServer LANGUAGES CXX)
 
 # ── 编译标准 ──────────────────────────────────────────────────────
@@ -46,6 +52,16 @@ add_library(server_objs OBJECT
 )
 target_include_directories(server_objs PUBLIC ${CMAKE_SOURCE_DIR})
 target_link_libraries(server_objs PUBLIC Threads::Threads mysql_iface)
+
+# clang 专有诊断：捕获 g++ 默认不报告的隐患（对应已知 Issue #1 #2 #5 #6）
+if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    target_compile_options(server_objs PRIVATE
+        -Wstring-conversion   # Issue #6: int 隐式转换为 std::string
+        -Warray-bounds        # Issue #5: 固定大小缓冲区越界写入
+        -Wuninitialized       # Issue #2: 变量先使用后赋值
+        -Wreturn-type         # Issue #1: void* 函数缺少 return
+    )
+endif()
 
 # ── 可执行文件：server ────────────────────────────────────────────
 add_executable(server main.cpp $<TARGET_OBJECTS:server_objs>)

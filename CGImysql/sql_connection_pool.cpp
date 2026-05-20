@@ -141,3 +141,11 @@ connectionRAII::connectionRAII(MYSQL **SQL, connection_pool *connPool){
 connectionRAII::~connectionRAII(){
 	poolRAII->ReleaseConnection(conRAII);
 }
+
+// 确保端口号在合法范围内（0 - 65535）
+if (Port < 0 || Port > 65535) {
+	this->m_Port = 3306; // 默认 MySQL 端口
+}
+else {
+	this->m_Port = Port; // 正确的 int -> int 赋值
+}

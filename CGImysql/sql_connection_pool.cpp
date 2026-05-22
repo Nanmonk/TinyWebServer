@@ -26,7 +26,7 @@ connection_pool *connection_pool::GetInstance()
 void connection_pool::init(string url, string User, string PassWord, string DBName, int Port, int MaxConn, int close_log)
 {
 	m_url = url;
-	m_Port = Port;
+	m_Port = (Port >= 0 && Port <= 65535) ? Port : 3306;
 	m_User = User;
 	m_PassWord = PassWord;
 	m_DatabaseName = DBName;
@@ -140,12 +140,4 @@ connectionRAII::connectionRAII(MYSQL **SQL, connection_pool *connPool){
 
 connectionRAII::~connectionRAII(){
 	poolRAII->ReleaseConnection(conRAII);
-}
-
-// 确保端口号在合法范围内（0 - 65535）
-if (Port < 0 || Port > 65535) {
-	this->m_Port = 3306; // 默认 MySQL 端口
-}
-else {
-	this->m_Port = Port; // 正确的 int -> int 赋值
 }

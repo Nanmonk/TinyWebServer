@@ -19,3 +19,4 @@ compile_commands.json
 # 日志输出
 *.log
 ServerLog*/
+.vs/ 

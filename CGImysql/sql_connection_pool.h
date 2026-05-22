@@ -39,7 +39,7 @@ private:
 
 public:
 	string m_url;			 //主机地址
-	string m_Port;		 //数据库端口号
+	int m_Port;		 //数据库端口号
 	string m_User;		 //登陆数据库用户名
 	string m_PassWord;	 //登陆数据库密码
 	string m_DatabaseName; //使用数据库名
